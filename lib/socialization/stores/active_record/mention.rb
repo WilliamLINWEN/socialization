@@ -13,6 +13,11 @@ module Socialization
         :mentioner_id     => mentioner.id)
       }
 
+      scope :mentioned_by_mailboxer_message, lambda { |mentioner| where(
+        :mentioner_type   => 'Mailboxer::Notification',
+        :mentioner_id     => mentioner.id)
+      }
+
       scope :mentioning,   lambda { |mentionable| where(
         :mentionable_type => mentionable.class.table_name.classify,
         :mentionable_id   => mentionable.id)
@@ -37,7 +42,7 @@ module Socialization
         def unmention!(mentioner, mentionable)
           if mentions?(mentioner, mentionable)
             mention_for(mentioner, mentionable).destroy_all
-            update_counter(mentioner, mentionees_count: -1)
+            update_counter(mentioner, mentionees_count: -1) 
             update_counter(mentionable, mentioners_count: -1)
             call_after_destroy_hooks(mentioner, mentionable)
             true
@@ -116,7 +121,12 @@ module Socialization
 
       private
         def mention_for(mentioner, mentionable)
-          mentioned_by(mentioner).mentioning(mentionable)
+          if mentioner.class.table_name.classify == 'MailboxerNotification'
+            # 若mentioner為Mailboxer::Message
+            mentioned_by_mailboxer_message(mentioner).mentioning(mentionable)
+          else
+            mentioned_by(mentioner).mentioning(mentionable)
+          end
         end
       end # class << self
 
